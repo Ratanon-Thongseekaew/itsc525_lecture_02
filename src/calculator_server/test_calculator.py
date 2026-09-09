@@ -1,7 +1,7 @@
 #test_calculator.py
 
 import pytest
-from calculator import expand_percent  # import your function
+from calculator_server.calculator import expand_percent  # import your function
 
 def test_add_percent():
     """Test addition where B% means 'B percent of A'."""
