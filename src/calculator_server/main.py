@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from asteval import Interpreter
 from datetime import datetime, timezone
 from calculator_server.calculator import expand_percent
+from calculator_server.models import Expression, CalculatorLog
 
 app = FastAPI(title="Mini Calculator API")
 
@@ -17,15 +18,15 @@ app.add_middleware(
 
 aeval = Interpreter(minimal=True, usersyms={"pi": math.pi, "e": math.e})
 
-calculator_history: list[dict] = []
+calculator_history: list[CalculatorLog] = []
 
 @app.post("/calculate")
-def calculate(expr: str):
+def calculate(expr: Expression):
     try:
      
         aeval.error.clear()
 
-        code = expand_percent(expr)
+        code = expand_percent(expr.expr)
         result = aeval(code)
 
         if aeval.error:
@@ -37,22 +38,22 @@ def calculate(expr: str):
 
             return {
                 "ok": False,
-                "expr": expr,
+                "expr": expr.expr,
                 "result": "",
                 "error": msg,
             }
 
         calculator_history.append(
-            {
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "expr": expr,
-                "result": result,
-            }
+            CalculatorLog(
+                timestamp=datetime.now(timezone.utc),
+                expr=expr.expr,
+                result=result,
+            )
         )
 
         return {
             "ok": True,
-            "expr": expr,
+            "expr": expr.expr,
             "result": result,
             "error": "",
         }
@@ -60,13 +61,17 @@ def calculate(expr: str):
     except Exception as error:
         return {
             "ok": False,
-            "expr": expr,
+            "expr": expr.expr,
             "result": "",
             "error": str(error),
         }
 
-@app.get("/history")
-def get_history(limit: int = 50):
+
+@app.get(
+    "/history",
+    response_model=list[CalculatorLog],
+)
+def get_history(limit: int = 50) -> list[CalculatorLog]:
     return calculator_history[-limit:]
 
 @app.delete("/history")
